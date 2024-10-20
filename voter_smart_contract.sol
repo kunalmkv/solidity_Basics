@@ -79,10 +79,10 @@ contract Vote {
         uint _age,
         Gender _gender
     )
-    external
-    checkIfElectionCommission
-    isCandidateLimitReached
-    isCandidateAlreadyRegistered(msg.sender)
+        external
+        checkIfElectionCommission
+        isCandidateLimitReached
+        isCandidateAlreadyRegistered(msg.sender)
     {
         candidateDetails[nextCandidateId] = Candidate({
             name: _name,
@@ -118,7 +118,7 @@ contract Vote {
     modifier isCandidateAlreadyRegistered(address _candidateAddress) {
         require(
             candidateDetails[nextCandidateId].candidateAddress !=
-            _candidateAddress,
+                _candidateAddress,
             "Candidate already registered"
         );
         _;
@@ -179,7 +179,10 @@ contract Vote {
         return "Voted Successfully";
     }
 
-    function setVotingPeriod(uint _startTime, uint _endTime) public isElectionCommission {
+    function setVotingPeriod(
+        uint _startTime,
+        uint _endTime
+    ) public isElectionCommission {
         startTime = _startTime;
         endTime = _endTime;
     }
