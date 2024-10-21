@@ -52,6 +52,10 @@ contract simpleWallet {
         payable(address(this)).transfer(msg.value);
 
     }
+
+    fallback() external {
+        str= "This is default fallback function";
+    }
 }
 
 //npx prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'
