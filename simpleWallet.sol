@@ -36,25 +36,42 @@ contract simpleWallet {
         _to.transfer(_weiAmount);
     }
 
-    function withdrawFromContract(uint amount) external isOwner isSufficientBalance(amount) {
-
-    }
-    function transferToAddressDirectly(address payable _to, uint) external payable isOwner isOwnerHaveSufficientBalance(msg.value) {
+    function withdrawFromContract(
+        uint amount
+    ) external isOwner isSufficientBalance(amount) {}
+    function transferToAddressDirectly(
+        address payable _to,
+        uint
+    ) external payable isOwner isOwnerHaveSufficientBalance(msg.value) {
         _to.transfer(msg.value);
     }
 
-    function receiveFromUserInOwnerAccount()  external payable isPostiveValue(msg.value)   {
+    function receiveFromUserInOwnerAccount()
+        external
+        payable
+        isPostiveValue(msg.value)
+    {
         payable(owner).transfer(msg.value);
-
     }
 
-    function receiveFromUserToContract() external payable isPostiveValue(msg.value)   {
+    function receiveFromUserToContract()
+        external
+        payable
+        isPostiveValue(msg.value)
+    {
         payable(address(this)).transfer(msg.value);
-
     }
 
     fallback() external {
-        str= "This is default fallback function";
+        str = "This is default fallback function";
+    }
+
+    receive() external payable {}
+    fallback() external payable {
+        str = "This is default fallback function";
+
+        //or you can also send back the ether
+        // payable(msg.sender).transfer(msg.value);
     }
 }
 
