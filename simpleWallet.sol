@@ -7,9 +7,13 @@ contract simpleWallet {
     constructor() {
         owner = msg.sender;
     }
+
+    event Transfer(address recipient, uint amount);
+    event Receive(address sender, uint amount);
     function getContractBalanceInWei() public view returns (uint) {
         return address(this).balance;
     }
+    event ReceiveFromUser(address sender, address receiver, uint amount);
     function transferToContract() public payable {}
 
     modifier isOwner() {
@@ -51,6 +55,7 @@ contract simpleWallet {
         payable
         isPostiveValue(msg.value)
     {
+        emit ReceiveFromUser(msg.sender, owner, msg.value);
         payable(owner).transfer(msg.value);
     }
 
@@ -66,9 +71,12 @@ contract simpleWallet {
         str = "This is default fallback function";
     }
 
-    receive() external payable {}
+    receive() external payable {
+        emit Receive(msg.sender, msg.value);
+    }
     fallback() external payable {
         str = "This is default fallback function";
+
 
         //or you can also send back the ether
         // payable(msg.sender).transfer(msg.value);
