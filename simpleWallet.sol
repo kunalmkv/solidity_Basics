@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 contract simpleWallet {
     address public owner;
     string public str;
+    bool public paused;
 
     // Thresholds for detecting suspicious activities
     uint constant largeTransactionThreshold = 100 ether;
@@ -192,6 +193,29 @@ contract simpleWallet {
      */
     function getAllSuspiciousActivities() public view returns (SuspiciousActivity[] memory) {
         return suspiciousActivities;
+    }
+
+    /**
+    * @dev changes the owner of smart contract
+    * @param _newOwner The address of the new owner
+    */
+    function changeOwner(address _newOwner) external isOwner isValidAddress(_newOwner) {
+        owner = _newOwner;
+    }
+
+    /**
+    * @dev function to toggle the contract's state
+    */
+    function toggleStop() external isOwner {
+        paused = !paused;
+    }
+
+    /**
+    * @dev function to withdraw all funds at once in case of emergency
+    */
+    function withdrawAllFunds() external isOwner {
+        require(paused, "Contract is not paused");
+        payable(owner).transfer(address(this).balance);
     }
 
     /**
