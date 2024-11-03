@@ -2,11 +2,9 @@
 pragma solidity ^0.8.10;
 
 contract storageTypes {
-    constructor(){
+    constructor() {}
 
-    }
-
-    uint [3] public fixedSizeArray = [1,2,3];
+    uint[3] public fixedSizeArray = [1, 2, 3];
 
     function storageArray() external {
         uint[3] storage storageArray = fixedSizeArray;
@@ -19,4 +17,3 @@ contract storageTypes {
         return memoryArray;
     }
 }
-

@@ -38,8 +38,18 @@ contract simpleWallet {
     // Events to track transfers, receipts, and suspicious activity
     event Transfer(address indexed recipient, uint amount);
     event Receive(address indexed sender, uint amount);
-    event TransactionRecorded(address indexed from, address indexed to, uint amount, uint txId, uint timestamp);
-    event SuspiciousActivityLogged(address indexed suspiciousAddress, uint amount, string reason);
+    event TransactionRecorded(
+        address indexed from,
+        address indexed to,
+        uint amount,
+        uint txId,
+        uint timestamp
+    );
+    event SuspiciousActivityLogged(
+        address indexed suspiciousAddress,
+        uint amount,
+        string reason
+    );
 
     // Constructor sets the contract deployer as the owner
     constructor() {
@@ -62,7 +72,13 @@ contract simpleWallet {
     function transferToAddressViaContract(
         address payable _to,
         uint _weiAmount
-    ) external payable isOwner isSufficientBalance(_weiAmount) isValidAddress(_to) {
+    )
+        external
+        payable
+        isOwner
+        isSufficientBalance(_weiAmount)
+        isValidAddress(_to)
+    {
         _to.transfer(_weiAmount);
         addTransactionToHistory(_to, _weiAmount); // Add to transaction history
         checkForSuspiciousActivity(_to, _weiAmount); // Check for suspicious activity
@@ -88,7 +104,13 @@ contract simpleWallet {
      */
     function transferToAddressDirectly(
         address payable _to
-    ) external payable isOwner isOwnerHaveSufficientBalance(msg.value) isValidAddress(_to) {
+    )
+        external
+        payable
+        isOwner
+        isOwnerHaveSufficientBalance(msg.value)
+        isValidAddress(_to)
+    {
         _to.transfer(msg.value);
         addTransactionToHistory(_to, msg.value); // Add to transaction history
         checkForSuspiciousActivity(_to, msg.value); // Check for suspicious activity
@@ -101,14 +123,22 @@ contract simpleWallet {
      * @param _amount The amount of Ether transferred.
      */
     function addTransactionToHistory(address _to, uint _amount) internal {
-        transactions.push(Transaction({
-            from: msg.sender,
-            to: _to,
-            amount: _amount,
-            txId: transactions.length,
-            timestamp: block.timestamp // Store block timestamp in transaction history
-        }));
-        emit TransactionRecorded(msg.sender, _to, _amount, transactions.length, block.timestamp); // Emit an event for transaction with timestamp
+        transactions.push(
+            Transaction({
+                from: msg.sender,
+                to: _to,
+                amount: _amount,
+                txId: transactions.length,
+                timestamp: block.timestamp // Store block timestamp in transaction history
+            })
+        );
+        emit TransactionRecorded(
+            msg.sender,
+            _to,
+            _amount,
+            transactions.length,
+            block.timestamp
+        ); // Emit an event for transaction with timestamp
     }
 
     /**
@@ -117,13 +147,19 @@ contract simpleWallet {
      * @param _amount The amount involved.
      * @param _reason The reason for marking it as suspicious.
      */
-    function logSuspiciousActivity(address _suspiciousAddress, uint _amount, string memory _reason) internal {
-        suspiciousActivities.push(SuspiciousActivity({
-            suspiciousAddress: _suspiciousAddress,
-            amount: _amount,
-            timestamp: block.timestamp,
-            reason: _reason
-        }));
+    function logSuspiciousActivity(
+        address _suspiciousAddress,
+        uint _amount,
+        string memory _reason
+    ) internal {
+        suspiciousActivities.push(
+            SuspiciousActivity({
+                suspiciousAddress: _suspiciousAddress,
+                amount: _amount,
+                timestamp: block.timestamp,
+                reason: _reason
+            })
+        );
         emit SuspiciousActivityLogged(_suspiciousAddress, _amount, _reason);
     }
 
@@ -141,8 +177,15 @@ contract simpleWallet {
 
         // Detect multiple small transactions within a short interval
         uint lastTimestamp = lastTransactionTimestamp[_to];
-        if (_amount <= smallTransactionThreshold && (block.timestamp - lastTimestamp) <= suspiciousTransactionInterval) {
-            logSuspiciousActivity(_to, _amount, "Multiple small transactions in short interval");
+        if (
+            _amount <= smallTransactionThreshold &&
+            (block.timestamp - lastTimestamp) <= suspiciousTransactionInterval
+        ) {
+            logSuspiciousActivity(
+                _to,
+                _amount,
+                "Multiple small transactions in short interval"
+            );
         }
 
         // Update the last transaction timestamp
@@ -154,9 +197,9 @@ contract simpleWallet {
      * @notice Use this function to send Ether to the owner's account directly.
      */
     function receiveFromUserInOwnerAccount()
-    external
-    payable
-    isPostiveValue(msg.value)
+        external
+        payable
+        isPostiveValue(msg.value)
     {
         emit Receive(msg.sender, msg.value);
         payable(owner).transfer(msg.value);
@@ -169,9 +212,9 @@ contract simpleWallet {
      * @notice Use this function to send Ether to the contract's balance.
      */
     function receiveFromUserToContract()
-    external
-    payable
-    isPostiveValue(msg.value)
+        external
+        payable
+        isPostiveValue(msg.value)
     {
         payable(address(this)).transfer(msg.value);
         addTransactionToHistory(address(this), msg.value); // Add to transaction history
@@ -183,7 +226,11 @@ contract simpleWallet {
      * @dev Retrieves all transaction history in one call.
      * @return An array of Transaction structs containing transaction details.
      */
-    function getAllTransactionHistory() public view returns (Transaction[] memory) {
+    function getAllTransactionHistory()
+        public
+        view
+        returns (Transaction[] memory)
+    {
         return transactions;
     }
 
@@ -191,28 +238,34 @@ contract simpleWallet {
      * @dev Retrieves all suspicious activities in one call.
      * @return An array of SuspiciousActivity structs containing suspicious activities details.
      */
-    function getAllSuspiciousActivities() public view returns (SuspiciousActivity[] memory) {
+    function getAllSuspiciousActivities()
+        public
+        view
+        returns (SuspiciousActivity[] memory)
+    {
         return suspiciousActivities;
     }
 
     /**
-    * @dev changes the owner of smart contract
-    * @param _newOwner The address of the new owner
-    */
-    function changeOwner(address _newOwner) external isOwner isValidAddress(_newOwner) {
+     * @dev changes the owner of smart contract
+     * @param _newOwner The address of the new owner
+     */
+    function changeOwner(
+        address _newOwner
+    ) external isOwner isValidAddress(_newOwner) {
         owner = _newOwner;
     }
 
     /**
-    * @dev function to toggle the contract's state
-    */
+     * @dev function to toggle the contract's state
+     */
     function toggleStop() external isOwner {
         paused = !paused;
     }
 
     /**
-    * @dev function to withdraw all funds at once in case of emergency
-    */
+     * @dev function to withdraw all funds at once in case of emergency
+     */
     function withdrawAllFunds() external isOwner {
         require(paused, "Contract is not paused");
         payable(owner).transfer(address(this).balance);
@@ -284,5 +337,4 @@ contract simpleWallet {
         require(_address != address(0), "Invalid address: zero address");
         _;
     }
-
 }

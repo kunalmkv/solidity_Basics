@@ -3,7 +3,7 @@ pragma solidity ^0.8.10;
 
 //learning inheritance
 
-contract Car{
+contract Car {
     uint public wheels;
     uint public price;
     uint public doors;
@@ -12,8 +12,15 @@ contract Car{
     uint public headlight;
 }
 
-contract Audi is Car{
-    constructor(uint _wheels, uint _price, uint _doors, string memory _color, string memory _brandName, uint _headlight){
+contract Audi is Car {
+    constructor(
+        uint _wheels,
+        uint _price,
+        uint _doors,
+        string memory _color,
+        string memory _brandName,
+        uint _headlight
+    ) {
         wheels = _wheels;
         price = _price;
         doors = _doors;
