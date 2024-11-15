@@ -49,3 +49,61 @@ contract AbiEncode {
         return abi.encodeCall(IERC20.transfer, (to, amount));
     }
 }
+
+/*
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+interface IERC20 {
+    function transfer(address, uint256) external;
+}
+
+// Updated event with new parameter names
+event TransferDecoded(address indexed receiverAddress, uint256 rupees);
+
+contract Token {
+    function transfer(address, uint256) external {
+        // Extract the calldata excluding the function selector (first 4 bytes)
+        bytes memory data = msg.data[4:];
+
+        // Decode the parameters
+        (address receiverAddress, uint256 rupees) = abi.decode(data, (address, uint256));
+
+        // Emit the updated event
+        emit TransferDecoded(receiverAddress, rupees);
+    }
+}
+
+contract AbiEncode {
+    function callTokenContractFunction(
+        address _contract,
+        bytes calldata data
+    ) external {
+        (bool ok, ) = _contract.call(data);
+        require(ok, "transaction failed");
+    }
+
+    function encodeWithSignature(
+        address receiverAddress,
+        uint256 rupees
+    ) external pure returns (bytes memory) {
+        return abi.encodeWithSignature("transfer(address,uint256)", receiverAddress, rupees);
+    }
+
+    function encodeWithSelector(
+        address receiverAddress,
+        uint256 rupees
+    ) external pure returns (bytes memory) {
+        return abi.encodeWithSelector(IERC20.transfer.selector, receiverAddress, rupees);
+    }
+
+    function encodeCall(
+        address receiverAddress,
+        uint256 rupees
+    ) external pure returns (bytes memory) {
+        return abi.encodeCall(IERC20.transfer, (receiverAddress, rupees));
+    }
+}
+
+*/
