@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "hardhat/console.sol"; // To console output
-
 contract TokenMarketPlace is Ownable {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
-    uint256 public tokenPrice = 2e16 wei; // 0.02 ether per GLD token
+    uint256 public tokenPrice; // Token price initialized during deployment
     uint256 public sellerCount = 1;
     uint256 public buyerCount = 1;
 
@@ -28,8 +26,14 @@ contract TokenMarketPlace is Ownable {
     event EtherWithdrawn(address indexed owner, uint256 amount);
     event CalculateTokenPrice(uint256 priceToPay);
 
-    constructor(address _gldToken) Ownable(msg.sender) {
+    constructor(
+        address _gldToken,
+        address _initialOwner,
+        uint256 _initialPrice
+    ) Ownable(_initialOwner) {
+        require(_initialPrice > 0, "Initial price must be greater than zero");
         gldToken = IERC20(_gldToken);
+        tokenPrice = _initialPrice; // Set the initial token price
     }
 
     // Adjust the token price based on demand and supply dynamics
@@ -80,14 +84,24 @@ contract TokenMarketPlace is Ownable {
         require(amountOfToken > 0, "Amount must be greater than zero");
         require(
             gldToken.balanceOf(msg.sender) >= amountOfToken,
-            "Insufficient balance"
+            "Insufficient token balance"
         );
 
         uint256 totalEarned = calculateTokenPrice(amountOfToken);
-        require(
-            address(this).balance >= totalEarned,
-            "Insufficient Ether in contract"
-        );
+
+        // Ensure contract has enough Ether, top up if necessary
+        if (address(this).balance < totalEarned) {
+            uint256 requiredAmount = totalEarned.sub(address(this).balance);
+            require(
+                address(this).balance + requiredAmount >= totalEarned,
+                "Owner failed to top up"
+            );
+
+            (bool topUpSuccess, ) = payable(address(this)).call{
+                value: requiredAmount
+            }("");
+            require(topUpSuccess, "Top-up failed");
+        }
 
         // Transfer tokens from seller to the contract
         gldToken.safeTransferFrom(msg.sender, address(this), amountOfToken);
@@ -114,7 +128,6 @@ contract TokenMarketPlace is Ownable {
             "Amount of Token must be greater than zero"
         );
         uint256 amountToPay = _amountOfToken.mul(tokenPrice).div(1e18);
-        console.log("Amount to pay: %s", amountToPay);
         return amountToPay;
     }
 
@@ -122,7 +135,7 @@ contract TokenMarketPlace is Ownable {
     function withdrawTokens(uint256 amount) public onlyOwner {
         require(
             gldToken.balanceOf(address(this)) >= amount,
-            "Insufficient balance"
+            "Insufficient token balance"
         );
         gldToken.safeTransfer(msg.sender, amount);
         emit TokensWithdrawn(msg.sender, amount);
@@ -130,8 +143,11 @@ contract TokenMarketPlace is Ownable {
 
     // Owner can withdraw accumulated Ether from the contract
     function withdrawEther(uint256 amount) public onlyOwner {
-        require(address(this).balance >= amount, "Insufficient balance");
+        require(address(this).balance >= amount, "Insufficient Ether balance");
         payable(msg.sender).transfer(amount);
         emit EtherWithdrawn(msg.sender, amount);
     }
+
+    // Allow contract to receive Ether
+    receive() external payable {}
 }
