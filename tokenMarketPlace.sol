@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -6,9 +7,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "hardhat/console.sol"; // To console output
 
-abstract contract TokenMarketPlace is Ownable {
+contract TokenMarketPlace is Ownable {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256; // x.add(y) = x+y
+    using SafeMath for uint256;
 
     uint256 public tokenPrice = 2e16 wei; // 0.02 ether per GLD token
     uint256 public sellerCount = 1;
@@ -45,7 +46,7 @@ abstract contract TokenMarketPlace is Ownable {
         } else if (demandFactor < 1e18) {
             // If supply is higher, decrease the price
             uint256 decrement = tokenPrice
-                .mul(1e18.sub(demandFactor))
+                .mul(uint256(1e18).sub(demandFactor))
                 .div(1e18)
                 .div(10); // 10% adjustment
             if (decrement < tokenPrice) {
@@ -77,14 +78,19 @@ abstract contract TokenMarketPlace is Ownable {
     // Sell tokens back to the marketplace
     function sellGLDToken(uint256 amountOfToken) public {
         require(amountOfToken > 0, "Amount must be greater than zero");
+        require(
+            gldToken.balanceOf(msg.sender) >= amountOfToken,
+            "Insufficient balance"
+        );
 
-        uint256 totalEarned = amountOfToken.mul(tokenPrice).div(1e18);
+        uint256 totalEarned = calculateTokenPrice(amountOfToken);
+        require(
+            address(this).balance >= totalEarned,
+            "Insufficient Ether in contract"
+        );
 
         // Transfer tokens from seller to the contract
         gldToken.safeTransferFrom(msg.sender, address(this), amountOfToken);
-
-        // Pay Ether to the seller
-        payable(msg.sender).transfer(totalEarned);
 
         // Adjust seller count
         sellerCount = sellerCount.add(1);
@@ -92,28 +98,39 @@ abstract contract TokenMarketPlace is Ownable {
         // Adjust token price based on demand
         adjustTokenPriceBasedOnDemand();
 
+        // Transfer Ether to the seller
+        (bool success, ) = payable(msg.sender).call{value: totalEarned}("");
+        require(success, "Oops ! Transfer failed.");
+
         emit TokenSold(msg.sender, amountOfToken, totalEarned);
     }
 
     // Calculate the price for a specific token amount
-    function calculateTokenPrice(uint256 _amountOfToken) public {
+    function calculateTokenPrice(
+        uint256 _amountOfToken
+    ) public view returns (uint256) {
         require(
             _amountOfToken > 0,
             "Amount of Token must be greater than zero"
         );
-        adjustTokenPriceBasedOnDemand();
         uint256 amountToPay = _amountOfToken.mul(tokenPrice).div(1e18);
-        console.log("amountToPay", amountToPay);
+        console.log("Amount to pay: %s", amountToPay);
+        return amountToPay;
     }
 
     // Owner can withdraw excess tokens from the contract
     function withdrawTokens(uint256 amount) public onlyOwner {
+        require(
+            gldToken.balanceOf(address(this)) >= amount,
+            "Insufficient balance"
+        );
         gldToken.safeTransfer(msg.sender, amount);
         emit TokensWithdrawn(msg.sender, amount);
     }
 
     // Owner can withdraw accumulated Ether from the contract
     function withdrawEther(uint256 amount) public onlyOwner {
+        require(address(this).balance >= amount, "Insufficient balance");
         payable(msg.sender).transfer(amount);
         emit EtherWithdrawn(msg.sender, amount);
     }
