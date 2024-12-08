@@ -5,7 +5,8 @@ contract Vote {
     constructor() {
         electionCommission = msg.sender;
     }
-    //1st entity
+
+    // Structs
     struct Voter {
         string name;
         uint age;
@@ -15,37 +16,38 @@ contract Vote {
         address voterAddress;
     }
 
-    //2nd entity
     struct Candidate {
         string name;
         uint party;
         uint age;
         Gender gender;
         uint candidateId;
-        address candidateAddress; //candidate EOA
+        address candidateAddress;
         uint voteCount;
     }
 
-    //3rd entity
+    // State Variables
     address public electionCommission;
-
     address public winner;
     uint nextVoterId = 1;
     uint nextCandidateId = 1;
 
-    //voting period
     uint startTime;
     uint endTime;
     bool stopVoting;
+    string public emergencyReason;
+    bool public isEmergencyDeclared;
 
     mapping(uint => Voter) public voterDetails;
     mapping(uint => Candidate) public candidateDetails;
 
+    // Enums
     enum votingStatus {
         NOT_STARTED,
         STARTED,
         STOPPED
     }
+
     enum Gender {
         MALE,
         FEMALE,
@@ -53,6 +55,7 @@ contract Vote {
         NOT_SPECIFIED
     }
 
+    // Modifiers
     modifier isVotingOver() {
         require(
             block.timestamp <= endTime && stopVoting == false,
@@ -60,6 +63,7 @@ contract Vote {
         );
         _;
     }
+
     modifier checkIfElectionCommission() {
         require(msg.sender == electionCommission, "Not Authorized");
         _;
@@ -69,8 +73,17 @@ contract Vote {
         require(msg.sender == electionCommission, "Not Authorized");
         _;
     }
+
+    // Functions
     function emergencyStopVoting() public checkIfElectionCommission {
         stopVoting = true;
+    }
+
+    function emergencyDeclare(string memory reason) public checkIfElectionCommission {
+        require(!isEmergencyDeclared, "Emergency already declared");
+        stopVoting = true;
+        isEmergencyDeclared = true;
+        emergencyReason = reason;
     }
 
     function registerCandidate(
@@ -104,10 +117,12 @@ contract Vote {
             return false;
         }
     }
+
     modifier isAgeValid(uint _age) {
         require(_age >= 18, "Age should be greater than 18");
         _;
     }
+
     modifier isVoterAlreadyRegistered(address _voterAddress) {
         require(
             voterDetails[nextVoterId].voterAddress != _voterAddress,
@@ -115,6 +130,7 @@ contract Vote {
         );
         _;
     }
+
     modifier isCandidateAlreadyRegistered(address _candidateAddress) {
         require(
             candidateDetails[nextCandidateId].candidateAddress !=
@@ -123,10 +139,12 @@ contract Vote {
         );
         _;
     }
+
     modifier isCandidateLimitReached() {
         require(nextCandidateId <= 3, "Candidate limit reached");
         _;
     }
+
     function registerVoter(
         string calldata _name,
         uint _age,
@@ -143,6 +161,7 @@ contract Vote {
         });
         nextVoterId++;
     }
+
     function getVoterList() public view returns (Voter[] memory) {
         Voter[] memory voters = new Voter[](nextVoterId - 1);
         for (uint i = 1; i < nextVoterId; i++) {
@@ -186,8 +205,11 @@ contract Vote {
         startTime = _startTime;
         endTime = _endTime;
     }
+
     function getVotingStatus() public view returns (votingStatus) {
-        if (block.timestamp < startTime) {
+        if (isEmergencyDeclared) {
+            return votingStatus.STOPPED;
+        } else if (block.timestamp < startTime) {
             return votingStatus.NOT_STARTED;
         } else if (block.timestamp >= startTime && block.timestamp <= endTime) {
             return votingStatus.STARTED;
@@ -195,6 +217,7 @@ contract Vote {
             return votingStatus.STOPPED;
         }
     }
+
     function announceWinner() public isElectionCommission {
         uint maxVotes = 0;
         for (uint i = 1; i < nextCandidateId; i++) {
