@@ -18,7 +18,7 @@ contract Vote {
 
     struct Candidate {
         string name;
-        uint party;
+        string party; // Changed from uint to string
         uint age;
         Gender gender;
         uint candidateId;
@@ -29,14 +29,15 @@ contract Vote {
     // State Variables
     address public electionCommission;
     address public winner;
-    uint nextVoterId = 1;
-    uint nextCandidateId = 1;
+    uint public nextVoterId = 1;
+    uint public nextCandidateId = 1;
 
-    uint startTime;
-    uint endTime;
-    bool stopVoting;
+    uint public startTime;
+    uint public endTime;
+    bool public stopVoting;
     string public emergencyReason;
     bool public isEmergencyDeclared;
+    uint public candidateLimit = 3; // Added candidate limit as a configurable variable
 
     mapping(uint => Voter) public voterDetails;
     mapping(uint => Candidate) public candidateDetails;
@@ -64,22 +65,57 @@ contract Vote {
         _;
     }
 
-    modifier checkIfElectionCommission() {
-        require(msg.sender == electionCommission, "Not Authorized");
-        _;
-    }
-
     modifier isElectionCommission() {
         require(msg.sender == electionCommission, "Not Authorized");
         _;
     }
 
+    modifier isAgeValid(uint _age) {
+        require(_age >= 18, "Age should be greater than 18");
+        _;
+    }
+
+    modifier isVoterAlreadyRegistered(address _voterAddress) {
+        for (uint i = 1; i < nextVoterId; i++) {
+            require(
+                voterDetails[i].voterAddress != _voterAddress,
+                "Voter already registered"
+            );
+        }
+        _;
+    }
+
+    modifier isCandidateAlreadyRegistered(address _candidateAddress) {
+        for (uint i = 1; i < nextCandidateId; i++) {
+            require(
+                candidateDetails[i].candidateAddress != _candidateAddress,
+                "Candidate already registered"
+            );
+        }
+        _;
+    }
+
+    modifier isCandidateLimitReached() {
+        require(nextCandidateId <= candidateLimit, "Candidate limit reached");
+        _;
+    }
+
     // Functions
-    function emergencyStopVoting() public checkIfElectionCommission {
+    function emergencyStopVoting() public isElectionCommission {
+        require(
+            block.timestamp >= startTime && block.timestamp <= endTime,
+            "Voting is not active"
+        );
         stopVoting = true;
     }
 
-    function emergencyDeclare(string memory reason) public checkIfElectionCommission {
+    function emergencyDeclare(
+        string memory reason
+    ) public isElectionCommission {
+        require(
+            block.timestamp >= startTime && block.timestamp <= endTime,
+            "Voting is not active"
+        );
         require(!isEmergencyDeclared, "Emergency already declared");
         stopVoting = true;
         isEmergencyDeclared = true;
@@ -93,7 +129,7 @@ contract Vote {
         Gender _gender
     )
         external
-        checkIfElectionCommission
+        isElectionCommission
         isCandidateLimitReached
         isCandidateAlreadyRegistered(msg.sender)
     {
@@ -108,41 +144,6 @@ contract Vote {
         });
 
         nextCandidateId++;
-    }
-
-    function isVoterEligible(uint _voterId) public view returns (bool) {
-        if (voterDetails[_voterId].age >= 18) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    modifier isAgeValid(uint _age) {
-        require(_age >= 18, "Age should be greater than 18");
-        _;
-    }
-
-    modifier isVoterAlreadyRegistered(address _voterAddress) {
-        require(
-            voterDetails[nextVoterId].voterAddress != _voterAddress,
-            "Voter already registered"
-        );
-        _;
-    }
-
-    modifier isCandidateAlreadyRegistered(address _candidateAddress) {
-        require(
-            candidateDetails[nextCandidateId].candidateAddress !=
-                _candidateAddress,
-            "Candidate already registered"
-        );
-        _;
-    }
-
-    modifier isCandidateLimitReached() {
-        require(nextCandidateId <= 3, "Candidate limit reached");
-        _;
     }
 
     function registerVoter(
@@ -162,10 +163,14 @@ contract Vote {
         nextVoterId++;
     }
 
+    function setCandidateLimit(uint _limit) public isElectionCommission {
+        candidateLimit = _limit;
+    }
+
     function getVoterList() public view returns (Voter[] memory) {
         Voter[] memory voters = new Voter[](nextVoterId - 1);
         for (uint i = 1; i < nextVoterId; i++) {
-            voters[i] = voterDetails[i];
+            voters[i - 1] = voterDetails[i];
         }
         return voters;
     }
@@ -173,7 +178,7 @@ contract Vote {
     function getCandidateList() public view returns (Candidate[] memory) {
         Candidate[] memory candidates = new Candidate[](nextCandidateId - 1);
         for (uint i = 1; i < nextCandidateId; i++) {
-            candidates[i] = candidateDetails[i];
+            candidates[i - 1] = candidateDetails[i];
         }
         return candidates;
     }
@@ -192,9 +197,21 @@ contract Vote {
             voterDetails[_voterId].voterAddress == msg.sender,
             "Not Authorized"
         );
-        require(_candidateId >= 1 && _candidateId <= 3, "Invalid Candidate Id");
+        require(
+            _candidateId >= 1 && _candidateId <= candidateLimit,
+            "Invalid Candidate Id"
+        );
+
         voterDetails[_voterId].voterCandidateId = _candidateId;
         candidateDetails[_candidateId].voteCount++;
+
+        if (
+            candidateDetails[_candidateId].voteCount >
+            candidateDetails[nextCandidateId - 1].voteCount
+        ) {
+            winner = candidateDetails[_candidateId].candidateAddress;
+        }
+
         return "Voted Successfully";
     }
 
@@ -202,6 +219,12 @@ contract Vote {
         uint _startTime,
         uint _endTime
     ) public isElectionCommission {
+        require(
+            _startTime > block.timestamp,
+            "Start time must be in the future"
+        );
+        require(_endTime > _startTime, "End time must be after start time");
+
         startTime = _startTime;
         endTime = _endTime;
     }

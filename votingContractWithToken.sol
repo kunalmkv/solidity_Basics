@@ -84,10 +84,10 @@ contract Vote {
         uint _age,
         Gender _gender
     )
-    external
-    checkIfElectionCommission
-    isCandidateLimitReached
-    isCandidateAlreadyRegistered(msg.sender)
+        external
+        checkIfElectionCommission
+        isCandidateLimitReached
+        isCandidateAlreadyRegistered(msg.sender)
     {
         candidateDetails[nextCandidateId] = Candidate({
             name: _name,
@@ -123,7 +123,7 @@ contract Vote {
     modifier isCandidateAlreadyRegistered(address _candidateAddress) {
         require(
             candidateDetails[nextCandidateId].candidateAddress !=
-            _candidateAddress,
+                _candidateAddress,
             "Candidate already registered"
         );
         _;
@@ -173,7 +173,10 @@ contract Vote {
             candidateDetails[_candidateId].candidateId != 0,
             "Candidate not registered"
         );
-        require(gldToken.balanceOf(voterDetails[_voterId].voterAddress) > 0, "Insufficient balance");
+        require(
+            gldToken.balanceOf(voterDetails[_voterId].voterAddress) > 0,
+            "Insufficient balance"
+        );
 
         require(
             voterDetails[_voterId].voterAddress == msg.sender,
