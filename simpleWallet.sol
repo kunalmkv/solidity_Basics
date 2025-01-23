@@ -7,9 +7,9 @@ contract simpleWallet {
     bool public paused;
 
     // Thresholds for detecting suspicious activities
-    uint constant largeTransactionThreshold = 100 ether;
-    uint constant smallTransactionThreshold = 0.01 ether;
-    uint constant suspiciousTransactionInterval = 1 minutes;
+    uint public largeTransactionThreshold = 100 ether;
+    uint public smallTransactionThreshold = 0.01 ether;
+    uint public suspiciousTransactionInterval = 1 minutes;
 
     // Struct to store transaction details along with block timestamp
     struct Transaction {
@@ -99,6 +99,12 @@ contract simpleWallet {
     }
 
     /**
+     * @dev Clears the transaction history.
+     */
+    function clearSuspiciousActivities() external isOwner {
+        delete suspiciousActivities;
+    }
+    /**
      * @dev Transfers ether directly from the owner to a specified address.
      * @param _to The address to transfer Ether to.
      */
@@ -151,7 +157,7 @@ contract simpleWallet {
         address _suspiciousAddress,
         uint _amount,
         string memory _reason
-    ) internal {
+    ) internal isOwner {
         suspiciousActivities.push(
             SuspiciousActivity({
                 suspiciousAddress: _suspiciousAddress,
@@ -161,6 +167,10 @@ contract simpleWallet {
             })
         );
         emit SuspiciousActivityLogged(_suspiciousAddress, _amount, _reason);
+    }
+    function transferOwnership(address newOwner) external isOwner {
+        require(newOwner != address(0), "Invalid address");
+        owner = newOwner;
     }
 
     /**
@@ -216,7 +226,15 @@ contract simpleWallet {
         payable
         isPostiveValue(msg.value)
     {
-        payable(address(this)).transfer(msg.value);
+        // payable(address(this)).transfer(msg.value);
+        // (bool success, ) = address(this).call{value: msg.value}("")
+        // both should be skipped here
+        //The line attempts to send Ether to the contract itself, which is unnecessary and causes
+        //the transaction to revert because there is no fallback or receive function implemented to accept the Ether.
+        //  Your contract doesn't have a fallback or receive function that can handle incoming Ether. Therefore, the call reverts, triggering the "Failed to transfer Ether" error message.
+        // To resolve this issue, you can remove the line that attempts to send Ether to the contract itself.
+        // You’re already receiving Ether in the function call because it's marked as payable. When a user sends Ether to receiveFromUserToContract, it is deposited into the contract’s balance automatically. There is no need to "send it back" to the contract using a .call.
+
         addTransactionToHistory(address(this), msg.value); // Add to transaction history
         checkForSuspiciousActivity(address(this), msg.value); // Check for suspicious activity
         emit Receive(msg.sender, msg.value);
@@ -271,6 +289,21 @@ contract simpleWallet {
         payable(owner).transfer(address(this).balance);
     }
 
+    /**
+     * @dev function to set the large transaction threshold
+     * @param _threshold The new threshold value
+     */
+    function setLargeTransactionThreshold(uint _threshold) external isOwner {
+        largeTransactionThreshold = _threshold;
+    }
+
+    /**
+     * @dev function to set the small transaction threshold
+     * @param _threshold The new threshold value
+     */
+    function setSmallTransactionThreshold(uint _threshold) external isOwner {
+        smallTransactionThreshold = _threshold;
+    }
     /**
      * @dev Fallback function to receive Ether when no data is provided.
      * This will store the message in `str` and transfer Ether to the contract.
