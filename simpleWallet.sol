@@ -311,6 +311,8 @@ contract simpleWallet {
     fallback() external payable {
         str = "This is default fallback function";
         emit Receive(msg.sender, msg.value);
+        // payable(address(this)).transfer(msg.value);
+        // payable (msg.sender).transfer(msg.value); // <- revert back transaction
         addTransactionToHistory(address(this), msg.value); // Add to transaction history for fallback
         checkForSuspiciousActivity(address(this), msg.value); // Check for suspicious activity
     }
