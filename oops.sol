@@ -11,7 +11,7 @@ contract Book {
         uint _length,
         uint _breadth,
         uint _height
-    ) public pure returns (uint) {
+    ) public   {
         length = _length;
         breadth = _breadth;
         height = _height;
@@ -28,11 +28,14 @@ contract Dimensions {
         uint _length,
         uint _breadth,
         uint _height
-    ) public pure returns (uint) {
-        return book.setDimensions(_length, _breadth, _height);
+    ) public   {
+        book.setDimensions(_length, _breadth, _height);
     }
 
     function getDimensions() public view returns (uint, uint, uint) {
         return book.getDimensions();
+    }
+    function getInstance() public view returns (Book){
+        return book;
     }
 }
