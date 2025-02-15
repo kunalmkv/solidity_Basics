@@ -4,8 +4,10 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "hardhat/console.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract TokenMarketPlace is Ownable {
+contract NexTrade is Ownable,ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -13,7 +15,7 @@ contract TokenMarketPlace is Ownable {
     uint256 public sellerCount = 1;
     uint256 public buyerCount = 1;
 
-    IERC20 public gldToken;
+    IERC20 public nxcToken;
 
     event TokenPriceUpdated(uint256 newPrice);
     event TokenBought(address indexed buyer, uint256 amount, uint256 totalCost);
@@ -27,12 +29,12 @@ contract TokenMarketPlace is Ownable {
     event CalculateTokenPrice(uint256 priceToPay);
 
     constructor(
-        address _gldToken,
+        address _nxcToken,
         address _initialOwner,
         uint256 _initialPrice
     ) Ownable(_initialOwner) {
         require(_initialPrice > 0, "Initial price must be greater than zero");
-        gldToken = IERC20(_gldToken);
+        nxcToken = IERC20(_nxcToken);
         tokenPrice = _initialPrice; // Set the initial token price
     }
 
@@ -47,14 +49,18 @@ contract TokenMarketPlace is Ownable {
                 .div(1e18)
                 .div(10); // 10% adjustment
             tokenPrice = tokenPrice.add(increment);
+            console.log("Increment: %s", increment);
+            console.log("Token Price: %s", tokenPrice);
         } else if (demandFactor < 1e18) {
             // If supply is higher, decrease the price
             uint256 decrement = tokenPrice
                 .mul(uint256(1e18).sub(demandFactor))
                 .div(1e18)
                 .div(10); // 10% adjustment
+            console.log("Decrement: %s", decrement);
             if (decrement < tokenPrice) {
                 tokenPrice = tokenPrice.sub(decrement);
+                console.log("Token Price: %s", tokenPrice);
             }
         }
 
@@ -62,13 +68,13 @@ contract TokenMarketPlace is Ownable {
     }
 
     // Buy tokens from the marketplace
-    function buyGLDToken(uint256 _amountOfToken) public payable {
+    function buyNXCToken(uint256 _amountOfToken) public payable nonReentrant {
         require(_amountOfToken > 0, "Amount must be greater than zero");
         uint256 totalCost = _amountOfToken.mul(tokenPrice).div(1e18);
         require(msg.value >= totalCost, "Insufficient Ether sent");
 
         // Transfer tokens to the buyer
-        gldToken.safeTransfer(msg.sender, _amountOfToken);
+        nxcToken.safeTransfer(msg.sender, _amountOfToken);
 
         // Adjust buyer count
         buyerCount = buyerCount.add(1);
@@ -80,10 +86,10 @@ contract TokenMarketPlace is Ownable {
     }
 
     // Sell tokens back to the marketplace
-    function sellGLDToken(uint256 amountOfToken) public {
+    function sellNXCToken(uint256 amountOfToken) public nonReentrant {
         require(amountOfToken > 0, "Amount must be greater than zero");
         require(
-            gldToken.balanceOf(msg.sender) >= amountOfToken,
+            nxcToken.balanceOf(msg.sender) >= amountOfToken,
             "Insufficient token balance"
         );
 
@@ -98,13 +104,13 @@ contract TokenMarketPlace is Ownable {
             );
 
             (bool topUpSuccess, ) = payable(address(this)).call{
-                value: requiredAmount
-            }("");
+                    value: requiredAmount
+                }("");
             require(topUpSuccess, "Top-up failed");
         }
 
         // Transfer tokens from seller to the contract
-        gldToken.safeTransferFrom(msg.sender, address(this), amountOfToken);
+        nxcToken.safeTransferFrom(msg.sender, address(this), amountOfToken);
 
         // Adjust seller count
         sellerCount = sellerCount.add(1);
@@ -128,21 +134,22 @@ contract TokenMarketPlace is Ownable {
             "Amount of Token must be greater than zero"
         );
         uint256 amountToPay = _amountOfToken.mul(tokenPrice).div(1e18);
+        console.log("Amount to pay: %s", amountToPay);
         return amountToPay;
     }
 
     // Owner can withdraw excess tokens from the contract
-    function withdrawTokens(uint256 amount) public onlyOwner {
+    function withdrawTokens(uint256 amount) public onlyOwner nonReentrant{
         require(
-            gldToken.balanceOf(address(this)) >= amount,
+            nxcToken.balanceOf(address(this)) >= amount,
             "Insufficient token balance"
         );
-        gldToken.safeTransfer(msg.sender, amount);
+        nxcToken.safeTransfer(msg.sender, amount);
         emit TokensWithdrawn(msg.sender, amount);
     }
 
     // Owner can withdraw accumulated Ether from the contract
-    function withdrawEther(uint256 amount) public onlyOwner {
+    function withdrawEther(uint256 amount) public onlyOwner nonReentrant{
         require(address(this).balance >= amount, "Insufficient Ether balance");
         payable(msg.sender).transfer(amount);
         emit EtherWithdrawn(msg.sender, amount);
