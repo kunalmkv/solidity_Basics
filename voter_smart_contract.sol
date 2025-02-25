@@ -2,10 +2,13 @@
 pragma solidity ^0.8.10;
 
 contract Vote {
+    uint public maxVotes = 0;
     constructor() {
         electionCommission = msg.sender;
     }
 
+    Voter[] public voterList;
+    Candidate[] public candidateList;
     // Structs
     struct Voter {
         string name;
@@ -41,6 +44,9 @@ contract Vote {
 
     mapping(uint => Voter) public voterDetails;
     mapping(uint => Candidate) public candidateDetails;
+    mapping(address => bool) public hasVoted;
+    mapping(address => bool) public isVoterRegistered;
+    mapping(address => bool) public isCandidateRegistered;
 
     // Enums
     enum votingStatus {
@@ -64,6 +70,13 @@ contract Vote {
         );
         _;
     }
+    event VoterRegistered(
+        string name,
+        uint age,
+        uint voterId,
+        Gender gender,
+        address voterAddress
+    );
 
     modifier isElectionCommission() {
         require(msg.sender == electionCommission, "Not Authorized");
@@ -75,28 +88,21 @@ contract Vote {
         _;
     }
 
-    modifier isVoterAlreadyRegistered(address _voterAddress) {
-        for (uint i = 1; i < nextVoterId; i++) {
-            require(
-                voterDetails[i].voterAddress != _voterAddress,
-                "Voter already registered"
-            );
-        }
-        _;
-    }
-
-    modifier isCandidateAlreadyRegistered(address _candidateAddress) {
-        for (uint i = 1; i < nextCandidateId; i++) {
-            require(
-                candidateDetails[i].candidateAddress != _candidateAddress,
-                "Candidate already registered"
-            );
-        }
-        _;
-    }
-
     modifier isCandidateLimitReached() {
         require(nextCandidateId <= candidateLimit, "Candidate limit reached");
+        _;
+    }
+
+    modifier isVoterAlreadyRegistered() {
+        require(!isVoterRegistered[msg.sender], "Voter already registered");
+        _;
+    }
+
+    modifier isCandidateAlreadyRegistered() {
+        require(
+            !isCandidateRegistered[msg.sender],
+            "Candidate already registered"
+        );
         _;
     }
 
@@ -123,6 +129,7 @@ contract Vote {
     }
 
     function registerCandidate(
+    address _candidateAddress,
         string calldata _name,
         string calldata _party,
         uint _age,
@@ -131,19 +138,45 @@ contract Vote {
         external
         isElectionCommission
         isCandidateLimitReached
-        isCandidateAlreadyRegistered(msg.sender)
+        isCandidateAlreadyRegistered
     {
-        candidateDetails[nextCandidateId] = Candidate({
+        Candidate memory newCandidate = Candidate({
             name: _name,
             party: _party,
             age: _age,
             gender: _gender,
             candidateId: nextCandidateId,
-            candidateAddress: msg.sender,
+            candidateAddress: _candidateAddress,
             voteCount: 0
         });
 
+        candidateDetails[nextCandidateId] = newCandidate;
+        candidateList.push(newCandidate);
+        isCandidateRegistered[msg.sender] = true;
         nextCandidateId++;
+    }
+    function updateCandidateLimit(uint _limit) public isElectionCommission {
+        require(
+            nextCandidateId == 1,
+            "Cannot change limit after registration starts"
+        );
+        candidateLimit = _limit;
+    }
+
+    function resetElection() public isElectionCommission {
+        require(block.timestamp > endTime, "Election not over yet");
+
+        for (uint i = 1; i < nextVoterId; i++) {
+            delete voterDetails[i];
+        }
+        for (uint i = 1; i < nextCandidateId; i++) {
+            delete candidateDetails[i];
+        }
+        nextVoterId = 1;
+        nextCandidateId = 1;
+        winner = address(0);
+        stopVoting = false;
+        isEmergencyDeclared = false;
     }
 
     function registerVoter(
@@ -151,8 +184,8 @@ contract Vote {
         uint _age,
         uint _voterId,
         Gender _gender
-    ) external isAgeValid(_age) isVoterAlreadyRegistered(msg.sender) {
-        voterDetails[nextVoterId] = Voter({
+    ) external isAgeValid(_age) isVoterAlreadyRegistered {
+        Voter memory newVoter = Voter({
             name: _name,
             age: _age,
             voterId: _voterId,
@@ -160,6 +193,10 @@ contract Vote {
             voterCandidateId: 0,
             voterAddress: msg.sender
         });
+
+        voterDetails[nextVoterId] = newVoter;
+        voterList.push(newVoter);
+        isVoterRegistered[msg.sender] = true;
         nextVoterId++;
     }
 
@@ -168,19 +205,11 @@ contract Vote {
     }
 
     function getVoterList() public view returns (Voter[] memory) {
-        Voter[] memory voters = new Voter[](nextVoterId - 1);
-        for (uint i = 1; i < nextVoterId; i++) {
-            voters[i - 1] = voterDetails[i];
-        }
-        return voters;
+        return voterList;
     }
 
     function getCandidateList() public view returns (Candidate[] memory) {
-        Candidate[] memory candidates = new Candidate[](nextCandidateId - 1);
-        for (uint i = 1; i < nextCandidateId; i++) {
-            candidates[i - 1] = candidateDetails[i];
-        }
-        return candidates;
+        return candidateList;
     }
 
     function castVote(
@@ -201,14 +230,15 @@ contract Vote {
             _candidateId >= 1 && _candidateId <= candidateLimit,
             "Invalid Candidate Id"
         );
+        require(!isEmergencyDeclared, "Emergency declared, voting stopped");
+        require(!hasVoted[msg.sender], "Already voted");
+        hasVoted[msg.sender] = true;
 
         voterDetails[_voterId].voterCandidateId = _candidateId;
         candidateDetails[_candidateId].voteCount++;
 
-        if (
-            candidateDetails[_candidateId].voteCount >
-            candidateDetails[nextCandidateId - 1].voteCount
-        ) {
+        if (candidateDetails[_candidateId].voteCount > maxVotes) {
+            maxVotes = candidateDetails[_candidateId].voteCount;
             winner = candidateDetails[_candidateId].candidateAddress;
         }
 
@@ -228,6 +258,9 @@ contract Vote {
         startTime = _startTime;
         endTime = _endTime;
     }
+    function withdrawFunds() public isElectionCommission {
+        payable(electionCommission).transfer(address(this).balance);
+    }
 
     function getVotingStatus() public view returns (votingStatus) {
         if (isEmergencyDeclared) {
@@ -241,13 +274,14 @@ contract Vote {
         }
     }
 
-    function announceWinner() public isElectionCommission {
-        uint maxVotes = 0;
-        for (uint i = 1; i < nextCandidateId; i++) {
-            if (candidateDetails[i].voteCount > maxVotes) {
-                maxVotes = candidateDetails[i].voteCount;
-                winner = candidateDetails[i].candidateAddress;
-            }
-        }
+    function announceWinner()
+        public
+        view
+        isElectionCommission
+        returns (address, uint)
+    {
+        require(block.timestamp > endTime, "Voting is still active");
+        require(winner != address(0), "No votes cast yet");
+        return (winner, maxVotes);
     }
 }
