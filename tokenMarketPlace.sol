@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract NexTrade is Ownable,ReentrancyGuard {
+contract NexTrade is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -104,8 +104,8 @@ contract NexTrade is Ownable,ReentrancyGuard {
             );
 
             (bool topUpSuccess, ) = payable(address(this)).call{
-                    value: requiredAmount
-                }("");
+                value: requiredAmount
+            }("");
             require(topUpSuccess, "Top-up failed");
         }
 
@@ -139,7 +139,7 @@ contract NexTrade is Ownable,ReentrancyGuard {
     }
 
     // Owner can withdraw excess tokens from the contract
-    function withdrawTokens(uint256 amount) public onlyOwner nonReentrant{
+    function withdrawTokens(uint256 amount) public onlyOwner nonReentrant {
         require(
             nxcToken.balanceOf(address(this)) >= amount,
             "Insufficient token balance"
@@ -149,7 +149,7 @@ contract NexTrade is Ownable,ReentrancyGuard {
     }
 
     // Owner can withdraw accumulated Ether from the contract
-    function withdrawEther(uint256 amount) public onlyOwner nonReentrant{
+    function withdrawEther(uint256 amount) public onlyOwner nonReentrant {
         require(address(this).balance >= amount, "Insufficient Ether balance");
         payable(msg.sender).transfer(amount);
         emit EtherWithdrawn(msg.sender, amount);

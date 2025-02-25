@@ -7,11 +7,7 @@ contract Book {
     uint height;
     constructor() {}
 
-    function setDimensions(
-        uint _length,
-        uint _breadth,
-        uint _height
-    ) public   {
+    function setDimensions(uint _length, uint _breadth, uint _height) public {
         length = _length;
         breadth = _breadth;
         height = _height;
@@ -24,18 +20,14 @@ contract Book {
 
 contract Dimensions {
     Book book = new Book();
-    function setDimensions(
-        uint _length,
-        uint _breadth,
-        uint _height
-    ) public   {
+    function setDimensions(uint _length, uint _breadth, uint _height) public {
         book.setDimensions(_length, _breadth, _height);
     }
 
     function getDimensions() public view returns (uint, uint, uint) {
         return book.getDimensions();
     }
-    function getInstance() public view returns (Book){
+    function getInstance() public view returns (Book) {
         return book;
     }
 }
