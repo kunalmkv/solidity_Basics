@@ -114,7 +114,38 @@ contract Vote {
         );
         stopVoting = true;
     }
+    //helper functions
+    function uintToString(uint _num) internal pure returns (string memory) {
+        if (_num == 0) {
+            return "0";
+        }
+        uint i = _num;
+        uint length;
+        while (i != 0) {
+            length++;
+            i /= 10;
+        }
+        bytes memory buffer = new bytes(length);
+        while (_num != 0) {
+            length -= 1;
+            buffer[length] = bytes1(uint8(48 + _num % 10));
+            _num /= 10;
+        }
+        return string(buffer);
+    }
 
+    function addressToString(address _addr) internal pure returns (string memory) {
+        bytes memory alphabet = "0123456789abcdef";
+        bytes20 value = bytes20(_addr);
+        bytes memory str = new bytes(42);
+        str[0] = "0";
+        str[1] = "x";
+        for (uint i = 0; i < 20; i++) {
+            str[2 + i * 2] = alphabet[uint8(value[i] >> 4)];
+            str[3 + i * 2] = alphabet[uint8(value[i] & 0x0f)];
+        }
+        return string(str);
+    }
     function emergencyDeclare(
         string memory reason
     ) public isElectionCommission {
@@ -129,16 +160,16 @@ contract Vote {
     }
 
     function registerCandidate(
-    address _candidateAddress,
+        address _candidateAddress,
         string calldata _name,
         string calldata _party,
         uint _age,
         Gender _gender
     )
-        external
-        isElectionCommission
-        isCandidateLimitReached
-        isCandidateAlreadyRegistered
+    external
+    isElectionCommission
+    isCandidateLimitReached
+    isCandidateAlreadyRegistered
     {
         Candidate memory newCandidate = Candidate({
             name: _name,
@@ -222,10 +253,12 @@ contract Vote {
             "Candidate not registered"
         );
 
-        require(
-            voterDetails[_voterId].voterAddress == msg.sender,
-            "Not Authorized"
-        );
+        require(voterDetails[_voterId].voterAddress == msg.sender,
+            string(abi.encodePacked(
+                "Unauthorized: msg.sender (", addressToString(msg.sender),
+                ") does not match registered voter (", addressToString(voterDetails[_voterId].voterAddress), ")"
+            )));
+
         require(
             _candidateId >= 1 && _candidateId <= candidateLimit,
             "Invalid Candidate Id"
@@ -275,10 +308,10 @@ contract Vote {
     }
 
     function announceWinner()
-        public
-        view
-        isElectionCommission
-        returns (address, uint)
+    public
+    view
+    isElectionCommission
+    returns (address, uint)
     {
         require(block.timestamp > endTime, "Voting is still active");
         require(winner != address(0), "No votes cast yet");
