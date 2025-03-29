@@ -98,9 +98,9 @@ contract Vote {
         _;
     }
 
-    modifier isCandidateAlreadyRegistered() {
+    modifier isCandidateAlreadyRegistered(address _candidateAddress) {
         require(
-            !isCandidateRegistered[msg.sender],
+            !isCandidateRegistered[_candidateAddress],
             "Candidate already registered"
         );
         _;
@@ -169,7 +169,7 @@ contract Vote {
     external
     isElectionCommission
     isCandidateLimitReached
-    isCandidateAlreadyRegistered
+    isCandidateAlreadyRegistered(_candidateAddress)
     {
         Candidate memory newCandidate = Candidate({
             name: _name,
