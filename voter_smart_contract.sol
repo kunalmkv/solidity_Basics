@@ -128,13 +128,15 @@ contract Vote {
         bytes memory buffer = new bytes(length);
         while (_num != 0) {
             length -= 1;
-            buffer[length] = bytes1(uint8(48 + _num % 10));
+            buffer[length] = bytes1(uint8(48 + (_num % 10)));
             _num /= 10;
         }
         return string(buffer);
     }
 
-    function addressToString(address _addr) internal pure returns (string memory) {
+    function addressToString(
+        address _addr
+    ) internal pure returns (string memory) {
         bytes memory alphabet = "0123456789abcdef";
         bytes20 value = bytes20(_addr);
         bytes memory str = new bytes(42);
@@ -166,10 +168,10 @@ contract Vote {
         uint _age,
         Gender _gender
     )
-    external
-    isElectionCommission
-    isCandidateLimitReached
-    isCandidateAlreadyRegistered(_candidateAddress)
+        external
+        isElectionCommission
+        isCandidateLimitReached
+        isCandidateAlreadyRegistered(_candidateAddress)
     {
         Candidate memory newCandidate = Candidate({
             name: _name,
@@ -252,22 +254,23 @@ contract Vote {
             candidateDetails[_candidateId].candidateId != 0,
             "Candidate not registered"
         );
-
-        require(voterDetails[_voterId].voterAddress == msg.sender,
-            string(abi.encodePacked(
-                "Unauthorized: msg.sender (", addressToString(msg.sender),
-                ") does not match registered voter (", addressToString(voterDetails[_voterId].voterAddress), ")"
-            )));
-
+        require(
+            voterDetails[_voterId].voterAddress == msg.sender,
+            "Unauthorized voter"
+        );
         require(
             _candidateId >= 1 && _candidateId <= candidateLimit,
             "Invalid Candidate Id"
         );
         require(!isEmergencyDeclared, "Emergency declared, voting stopped");
         require(!hasVoted[msg.sender], "Already voted");
+
         hasVoted[msg.sender] = true;
 
+        // Update voter's candidateId in voterDetails mapping
         voterDetails[_voterId].voterCandidateId = _candidateId;
+
+        // Increment vote count for candidate
         candidateDetails[_candidateId].voteCount++;
 
         if (candidateDetails[_candidateId].voteCount > maxVotes) {
@@ -276,6 +279,15 @@ contract Vote {
         }
 
         return "Voted Successfully";
+    }
+
+    // Efficient getter function for voterDetails mapping
+    function getVoterDetails(uint _voterId) public view returns (Voter memory) {
+        require(
+            voterDetails[_voterId].voterAddress != address(0),
+            "Voter does not exist"
+        );
+        return voterDetails[_voterId];
     }
 
     function setVotingPeriod(
@@ -308,10 +320,10 @@ contract Vote {
     }
 
     function announceWinner()
-    public
-    view
-    isElectionCommission
-    returns (address, uint)
+        public
+        view
+        isElectionCommission
+        returns (address, uint)
     {
         require(block.timestamp > endTime, "Voting is still active");
         require(winner != address(0), "No votes cast yet");
