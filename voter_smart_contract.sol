@@ -256,7 +256,15 @@ contract Vote {
         );
         require(
             voterDetails[_voterId].voterAddress == msg.sender,
-            "Unauthorized voter"
+            string(
+                abi.encodePacked(
+                    "Unauthorized: msg.sender (",
+                    addressToString(msg.sender),
+                    ") does not match registered voter (",
+                    addressToString(voterDetails[_voterId].voterAddress),
+                    ")"
+                )
+            )
         );
         require(
             _candidateId >= 1 && _candidateId <= candidateLimit,
