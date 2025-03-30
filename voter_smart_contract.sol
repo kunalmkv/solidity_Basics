@@ -183,7 +183,7 @@ contract Vote {
 
         candidateDetails[nextCandidateId] = newCandidate;
         candidateList.push(newCandidate);
-        isCandidateRegistered[msg.sender] = true;
+        isCandidateRegistered[_candidateAddress] = true;
         nextCandidateId++;
     }
     function updateCandidateLimit(uint _limit) public isElectionCommission {
