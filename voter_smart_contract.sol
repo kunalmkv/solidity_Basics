@@ -290,7 +290,9 @@ contract Vote {
     }
 
     // Efficient getter function for voterDetails mapping
-    function getVoterDetails(uint _voterId) public view returns (Voter memory) {
+    function getVoterDetails(
+        uint _voterId
+    ) public view isElectionCommission returns (Voter memory) {
         require(
             voterDetails[_voterId].voterAddress != address(0),
             "Voter does not exist"
