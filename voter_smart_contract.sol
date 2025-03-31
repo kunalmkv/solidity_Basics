@@ -300,6 +300,17 @@ contract Vote {
         return voterDetails[_voterId];
     }
 
+    // Get candidate details by candidateId (accessible only by electionCommission)
+    function getCandidateDetails(
+        uint _candidateId
+    ) public view isElectionCommission returns (Candidate memory) {
+        require(
+            candidateDetails[_candidateId].candidateAddress != address(0),
+            "Candidate does not exist"
+        );
+        return candidateDetails[_candidateId];
+    }
+
     function setVotingPeriod(
         uint _startTime,
         uint _endTime
